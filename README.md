@@ -12,13 +12,13 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-2.0.0-blue.svg" alt="Version" />
-  <img src="https://img.shields.io/badge/React-18.3.1-61dafb.svg" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-5.5.3-3178c6.svg" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/FastAPI-0.111.0-009688.svg" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/React-19.0.0-61dafb.svg" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-5.7.2-3178c6.svg" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/FastAPI-0.115+-009688.svg" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Python-3.12-3776ab.svg" alt="Python" />
-  <img src="https://img.shields.io/badge/Vite-5.4.2-646cff.svg" alt="Vite" />
+  <img src="https://img.shields.io/badge/Vite-6.0.7-646cff.svg" alt="Vite" />
   <img src="https://img.shields.io/badge/Tests-391%20Passed-brightgreen.svg" alt="Tests" />
-  <img src="https://img.shields.io/badge/License-Proprietary%20%2F%20Internal-lightgrey.svg" alt="License" />
+  <img src="https://img.shields.io/badge/License-Proprietary-lightgrey.svg" alt="License" />
 </p>
 
 ---
@@ -31,104 +31,93 @@ Unlike monolithic legacy ERP tools or simplistic moving-average spreadsheets, De
 
 ---
 
-## 2. Product Purpose & Problems Solved
+## 2. Key Capabilities
 
-Supply chain and inventory planners routinely face critical operational challenges:
-- **Excess Working Capital vs. Stockouts**: Over-ordering slow-moving goods while facing stockouts on high-velocity items due to uncalibrated safety stock rules.
-- **Intermittent & Lumpy Demand**: Standard time-series models fail dramatically on intermittent or sporadic demand streams.
-- **Lack of Model Accountability**: Planners rarely know *which* model produced a forecast, why it was chosen, or how it performed historically.
-- **Data Ingestion Friction**: Enterprise teams manage data across disparate Excel workbooks, messy ERP exports, and siloed spreadsheets.
-- **Computational Latency**: Backtesting thousands of SKUs across multiple candidate models can freeze planning operations for hours.
-
-**Demandora solves these problems by providing:**
-1. **Automated SKU Profiling & Classification**: Segmenting portfolios into demand regimes (Runner, Repeater, Stranger) using Coefficient of Variation ($CV^2$) and Average Demand Interval ($ADI$).
-2. **Strict Chronological Backtesting**: Testing candidate models across 12 expanding validation folds with **zero temporal data leakage**.
-3. **5-Layer Persistent SQLite Cache**: Sub-second response times on warm portfolios through content-addressable SHA-256 data fingerprinting and WAL-mode SQLite caching.
-4. **Deterministic Gross-to-Net MRP**: Automatic netting against stock, open purchase orders, and sales orders, respecting MOQ, order multiples, and lead-time offset.
-5. **Multi-Level BOM Explosion**: Component-level netting and dependency planning for complex assemblies.
-
----
-
-## 3. Key Capabilities
-
-- **Automated Statistical Tournament**: Evaluates 9 candidate models per mature SKU:
+- **Automated Statistical Tournament**: Evaluates up to 9 candidate models per mature SKU:
   - Naive & Seasonal Naive
-  - Historical Mean & Moving Averages
-  - Exponential Smoothing (Holt's Linear / Additive)
+  - Historical Mean & Moving Averages (SMA-3, WMA-3)
+  - Linear Trend Regression (OLS)
+  - Exponential Smoothing (Holt's Linear / Additive via `statsmodels`)
   - Croston's Method & Syntetos-Boylan Approximation (SBA) for intermittent demand
   - Histogram-Based Gradient Boosting Regressors (`HistGradientBoostingRegressor`) with lag and rolling features
 - **Mathematical Evaluation Rigor**:
   - Out-of-sample metrics: **WAPE** (Weighted Absolute Percentage Error), **MAE**, **RMSE**, and **Normalized Mean Bias**.
-  - Tie-breaking hierarchy prioritizing lowest WAPE, followed by MAE, RMSE, and minimal bias.
+  - Strict tie-breaking hierarchy: lowest WAPE, followed by MAE, RMSE, and minimal absolute bias.
+  - Zero temporal data leakage: strictly chronological expanding validation folds.
+- **Demand Lifecycle Profiling**:
+  - Portfolio classification into Runner, Repeater, and Stranger regimes using Coefficient of Variation ($CV^2$) and Average Demand Interval ($ADI$).
 - **Procurement Decision Guardrails**:
-  - Automatically identifies forecast over-optimism or chronic under-forecasting.
-  - Applies safety-stock multipliers and buffer caps tailored to SKU lifecycle velocity.
+  - Identifies model bias and dampens safety stock recommendations to avoid bullwhip effect inventory build-up.
 - **Universal Excel Ingestion**:
-  - Intelligent column alias fuzzy matching for messy ERP exports.
-  - Ingests Item Master, Sales History, Inventory, Open POs, Open SOs, and BOM sheets simultaneously.
+  - Ingests Item Master, Sales History, Inventory, Open POs, Open SOs, and BOM sheets with column alias fuzzy matching.
+- **Deterministic Gross-to-Net MRP**:
+  - Automatic netting against stock, open purchase orders, and sales orders, respecting MOQ, order multiples, and lead-time offset.
+- **Multi-Level BOM Explosion**:
+  - Recursive component-level netting and shortage detection for manufactured assemblies.
 - **High-Density Forecast Grid**:
-  - Horizontally scrollable, freeze-column layout displaying SKU metadata, demand profile, model selection, forecast horizon, and procurement recommendations.
-  - Interactive manual override mechanism with full planner audit tracking.
+  - Horizontally scrollable, freeze-column layout displaying SKU metadata, demand profile, model selection, forecast horizon, and procurement recommendations with full planner audit tracking.
 
 ---
 
-## 4. System Architecture
+## 3. System Architecture
 
 Demandora operates on a decoupled client-server architecture combining a responsive React/TypeScript frontend with an authoritative Python machine learning backend.
 
 ```mermaid
 graph TD
-    A[Excel Workbook / ERP Export] -->|Drop / File Read| B[Client Ingestion Service]
-    B -->|Normalize & Validate| C[Normalized Dataset State]
-    C -->|HTTP / JSON| D[FastAPI Backend Gateway]
+    A[Excel File / ERP Data Export] -->|Upload / File Drop| B[Excel Ingestion Engine]
+    B -->|Schema Validation & Normalization| C[Normalized Dataset State]
+    C -->|HTTP / JSON Requests| D[FastAPI Gateway :8000]
     
-    subgraph "Demandora Python ML Engine"
-        D --> E[Multi-Layer Cache Engine]
-        E -->|Cache Hit| F[Precomputed Model & Forecasts]
+    subgraph "Python Machine Learning Engine"
+        D --> E[Multi-Layer SQLite Cache]
+        E -->|Cache Hit| F[Precomputed Profiles & Projections]
         E -->|Cache Miss| G[SKU Segmentation & Profiling]
         G --> H[Model Eligibility Filter]
-        H --> I[Walk-Forward Backtesting Engine]
-        I --> J[Model Selection Tournament]
-        J --> K[Winning Model Refit & Horizon Projection]
+        H --> I[Walk-Forward Backtesting Tournament]
+        I --> J[Model Selection & Parameter Refit]
+        J --> K[Horizon Forecast & Prediction Bounds]
         K --> L[SQLite Persistent Storage & WAL Buffer]
     end
     
-    L --> M[Engine Telemetry & Forecast Results]
+    L --> M[Engine Telemetry & Batch Response]
     F --> M
-    M -->|HTTP Response| N[Frontend State Store]
+    M -->|HTTP Response| N[Frontend Application State]
     
-    subgraph "Supply Business Logic Layer"
-        N --> O[Gross-to-Net MRP Engine]
-        O --> P[Multi-Tier BOM Explosion]
-        P --> Q[Procurement Guardrails & Heuristics]
+    subgraph "Supply & Operations Layer"
+        N --> O[Gross-to-Net MRP Netting Engine]
+        O --> P[Multi-Tier BOM Recursive Explosion]
+        P --> Q[Procurement Guardrails & Bias Dampening]
     end
     
     Q --> R[Interactive Forecast Grid]
-    Q --> S[Demand Intelligence Dashboard]
-    Q --> T[Excel Export / Production Plan]
+    Q --> S[Demand Intelligence & Analytics]
+    Q --> T[Export Production Schedule / Excel]
 ```
+
+*For comprehensive architectural specifications, see [docs/architecture.md](docs/architecture.md).*
 
 ---
 
-## 5. Technology Stack
+## 4. Technology Stack
 
-| Layer | Technologies |
+| Layer | Technologies & Libraries |
 |---|---|
-| **Frontend Framework** | React 18.3.1, TypeScript 5.5.3, Vite 5.4.2 |
-| **Icons & UI** | Lucide React, Custom SVG Design System, Glassmorphic Dashboard CSS |
-| **Data Parsing & Export** | SheetJS (XLSX 0.18.5) with full multi-sheet styling |
-| **Client Test Runner** | Vitest 4.0.18 with jsdom environment (201 test suites) |
-| **Backend Framework** | FastAPI 0.111.0, Uvicorn ASGI Server |
-| **Machine Learning & Stats** | scikit-learn 1.5.0+, statsmodels 0.14.0+, NumPy 2.x, Pandas 2.x |
+| **Frontend Framework** | React 19.0.0, TypeScript 5.7.2, Vite 6.0.7 |
+| **UI & Visual Design** | Lucide React 1.16.0, Custom SVG Design System, Glassmorphic CSS |
+| **Data Parsing & Export** | SheetJS (XLSX 0.18.5) with multi-tab formatted export |
+| **Client Test Runner** | Vitest 5.0.3 (201 automated test suites) |
+| **Backend Framework** | FastAPI 0.115+, Uvicorn 0.30+ ASGI Server |
+| **Machine Learning & Stats** | scikit-learn 1.5+, statsmodels 0.14+, NumPy 2.x, Pandas 2.x |
 | **Caching & Persistence** | SQLite 3 (WAL mode, memory-mapped I/O, synchronous=NORMAL) |
-| **Backend Test Runner** | Pytest 8.2.0+ (190 test suites) |
+| **Backend Test Runner** | Pytest 8.x (190 automated test suites) |
 
 ---
 
-## 6. Project Directory Structure
+## 5. Project Directory Structure
 
 ```
-demandora/
+Demandora/
 ├── backend/
 │   ├── cache_data/            # Persistent SQLite database storage (excluded from git)
 │   ├── tests/                 # 190 pytest test cases (backtest, cache, segmentation, models)
@@ -141,8 +130,15 @@ demandora/
 │   ├── main.py                # FastAPI HTTP server & endpoint definitions
 │   ├── model_selection.py     # Deterministic tournament selection logic
 │   ├── models.py              # 9 candidate statistical and ML models
-│   ├── requirements.txt       # Python dependencies
+│   ├── requirements.txt       # Python dependencies (FastAPI, scikit-learn, statsmodels)
 │   └── segmentation.py        # Runner / Repeater / Stranger classification
+├── docs/                      # Professional technical documentation
+│   ├── architecture.md        # Detailed system architecture & data flow
+│   ├── benchmarks.md          # Empirical benchmark methodology & telemetry records
+│   ├── caching-system.md      # 5-layer SQLite caching & invalidation design
+│   ├── development-guide.md   # Local setup, development, and testing guide
+│   ├── forecasting-engine.md  # Model mathematics, backtesting, and segmentation rules
+│   └── inventory-and-mrp.md   # Gross-to-net MRP, MOQ offsets, and BOM explosion
 ├── public/
 │   ├── demandora-logo.svg     # Official Demandora wordmark and emblem
 │   └── favicon.svg            # Modern SVG browser favicon
@@ -154,32 +150,32 @@ demandora/
 │   ├── main.tsx               # React DOM bootstrap
 │   ├── styles.css             # Unified enterprise design system & CSS variables
 │   └── types.ts               # Complete TypeScript domain contracts
-├── docs/                      # Architectural specifications & audit logs
 ├── .env.example               # Template environment configuration
 ├── .gitignore                 # Exclusion rules for caches, venvs, and private databases
 ├── CONTRIBUTING.md            # Guidelines for open contributions and development
 ├── package.json               # Frontend dependencies & npm scripts
 ├── tsconfig.json              # Strict TypeScript compiler options
+├── start.bat                  # One-click Windows launch script
+├── stop.bat                   # One-click Windows stop script
 └── vite.config.ts             # Vite build & Vitest configuration
 ```
 
 ---
 
-## 7. Installation & Setup
+## 6. Installation & Setup
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **Python**: v3.10 to v3.12
+- **Node.js**: v18.0.0 or higher (v20.x recommended)
+- **Python**: v3.10 to v3.12 (Python 3.12 recommended)
 
-### Step 1: Clone the Repository
+### Step 1: Clone Repository
 ```bash
-git clone https://github.com/your-username/demandora.git
-cd demandora
+git clone https://github.com/scody1/Demandora.git
+cd Demandora
 ```
 
-### Step 2: Backend Setup
+### Step 2: Backend Virtual Environment & Dependencies
 ```bash
-# Create and activate Python virtual environment
 python -m venv .venv
 
 # Windows (PowerShell):
@@ -187,92 +183,65 @@ python -m venv .venv
 # Linux / macOS:
 source .venv/bin/activate
 
-# Install required Python packages
+# Install backend dependencies
 pip install -r backend/requirements.txt
 ```
 
-### Step 3: Frontend Setup
+### Step 3: Frontend Dependencies
 ```bash
-# Install Node dependencies
 npm install
 ```
 
 ### Step 4: Environment Configuration
 ```bash
-# Copy example environment configuration
 cp .env.example .env
 ```
 
 ---
 
-## 8. Launching the Application
+## 7. Launching the Application
 
-Start both the backend engine and the frontend development server:
+### One-Click Launch (Windows)
+Run `start.bat` in the project root to start both backend and frontend servers and open your browser automatically.
 
-### Terminal 1: Backend API Service
+### Manual Launch
+
+**Terminal 1 (Backend ML Service):**
 ```bash
-# Ensure virtual environment is active
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-*The FastAPI documentation is available at `http://127.0.0.1:8000/docs`.*
+*API documentation is available at `http://127.0.0.1:8000/docs`.*
 
-### Terminal 2: Frontend Client
+**Terminal 2 (Frontend Client):**
 ```bash
 npm run dev
 ```
-*The application interface is available at `http://localhost:3000`.*
+*Application interface is available at `http://localhost:3000`.*
 
 ---
 
-## 9. Operating Workflow
-
-### 1. Ingesting Data
-- Navigate to the **Import Data** section or use the **Import Excel** modal.
-- Upload an Excel workbook containing:
-  - **Item Master**: SKU codes, descriptions, UoM, Make/Buy, lead time, MOQ, order multiples.
-  - **Sales History**: Monthly historical unit sales per SKU.
-  - **Inventory**: Current on-hand balances.
-  - **Open POs & SOs**: Confirmed incoming and committed outgoing stock.
-  - **BOM (Optional)**: Assembly parent-child relationships and component ratios.
-- Demandora validates data types, flags missing mandatory fields, and displays an ingestion summary.
-
-### 2. Generating Forecasts
-- Specify your **Planning Horizon** (default: 6 months).
-- Click **Generate Forecast**.
-- Demandora passes normalized SKU time-series to the Python engine:
-  - Profiling & segmentation.
-  - Walk-forward candidate model backtesting.
-  - Model selection tournament.
-  - Final projection calculation.
-- Results stream back with full telemetry (winning model, historical WAPE, compute time per SKU).
-
-### 3. Reviewing & Adjusting
-- In the **Forecast Grid**, inspect model choices, backtest error curves, and suggested procurement schedules.
-- Apply manual adjustments if domain knowledge requires planner overrides.
-- Export approved demand plans directly to multi-tab formatted Excel workbooks.
-
----
-
-## 10. Caching & Performance Architecture
+## 8. Caching & Performance Architecture
 
 Demandora features a **5-layer persistent caching architecture** backed by SQLite in Write-Ahead Logging (WAL) mode:
 
-1. **Layer 1: SKU Demand Profile Cache**: Memoizes life-cycle calculations (ADI, CV², total quantity, zero intervals).
-2. **Layer 2: SKU Feature Set Cache**: Precomputes rolling statistics, Fourier cyclical features, and lag vectors.
-3. **Layer 3: Walk-Forward Backtesting Evaluation Cache**: Caches validation window errors per model family.
-4. **Layer 4: SKU Winning Model Cache**: Retains the winning algorithm and parameter states.
-5. **Layer 5: End-to-End Horizon Forecast Cache**: Stores projected values keyed by SKU, horizon, and parameters.
+1. **Layer 1: SKU Demand Profile Cache**: Memoizes lifecycle statistics ($ADI$, $CV^2$, seasonality, trend).
+2. **Layer 2: SKU Feature Set Cache**: Precomputes rolling statistics, cyclical features, and lag vectors.
+3. **Layer 3: Walk-Forward Backtesting Cache**: Caches validation window errors and tournament rankings.
+4. **Layer 4: Winning Model Artifact Cache**: Retains winning algorithm parameters and refit state.
+5. **Layer 5: End-to-End Forecast Cache**: Stores projected values keyed by SKU, horizon, and parameters.
 
-### Benchmark Performance Evidence
-- **Cold Benchmark (1,070 mature SKUs, 9 candidate models, 12 validation folds)**: Full computation completes in ~23.5 minutes on 8-core CPU.
-- **Warm Re-Evaluation**: Sub-second execution (< 1.5 seconds) through persistent SQLite lookups.
-- **Selective Delta Invalidation**: Changes to supply parameters (PO/SO/Stock) trigger instantaneous MRP updates without invalidating statistical demand models.
+### Empirical Performance Evidence (2,094 SKUs, 24 Monthly Periods)
+- **Cold Portfolio (Initial Ingestion)**: ~23.5 minutes (1,409.95 s) evaluating 9,630 model candidates across 129,659 validation windows on an 8-core CPU.
+- **Warm Re-Evaluation (Identical Portfolio)**: ~2.06 minutes (123.72 s), avoiding 40,330 redundant model fits and 515,436 validation window evaluations (99.66% cache hit ratio).
+- **Supply-Only / MRP Delta Updates**: Instantaneous (< 1.5 seconds) gross-to-net MRP recalculation without refitting machine-learning demand models.
+
+*For detailed execution logs and methodology, see [docs/benchmarks.md](docs/benchmarks.md).*
 
 ---
 
-## 11. Testing & Verification
+## 9. Testing & Quality Assurance
 
-Demandora maintains a rigorous automated testing discipline across both stacks:
+Demandora maintains automated test suites across both stacks:
 
 ```bash
 # Run backend test suite (190 tests)
@@ -281,29 +250,38 @@ pytest backend/tests -v
 # Run frontend test suite (201 tests across 19 files)
 npm test
 
-# Verify TypeScript static types
+# Verify TypeScript static types (0 errors)
 npx tsc --noEmit
 
-# Validate production build bundle
+# Validate production build
 npm run build
 ```
 
 ---
 
-## 12. Roadmap
+## 10. Technical Documentation Index
 
-- [x] Walk-forward backtesting tournament & model selection.
-- [x] 5-layer persistent SQLite cache with zero-leakage validation.
-- [x] Multi-tier Bill of Materials (BOM) explosion.
-- [x] Gross-to-Net MRP calculation engine.
-- [x] Enterprise rebranding to Demandora.
-- [ ] Direct database connectors (PostgreSQL, Snowflake, BigQuery).
-- [ ] Multi-scenario "What-If" planning simulation mode.
-- [ ] Automated supplier lead-time variance tracking.
+Detailed specifications are available in the [`docs/`](docs/) directory:
+- [System Architecture](docs/architecture.md): Data pipeline, client-server communication, component breakdown.
+- [Forecasting Engine](docs/forecasting-engine.md): 9 candidate models, walk-forward cross-validation, tie-breaking logic.
+- [Caching System](docs/caching-system.md): 5-layer content-addressable cache, WAL mode, selective invalidation.
+- [Inventory & MRP](docs/inventory-and-mrp.md): Gross-to-net netting, MOQ order sizing, lead-time offsets, multi-tier BOM explosion.
+- [Benchmark Report](docs/benchmarks.md): Measured cold vs. warm timings, cache hit rates, hardware specifications.
+- [Development Guide](docs/development-guide.md): Local installation, testing instructions, contribution workflow.
 
 ---
 
-## 13. License
+## 11. Limitations & Roadmap
 
-Proprietary and Confidential. All rights reserved.
+- **Current Capabilities**: Automated walk-forward tournament selection, 5-layer persistent caching, multi-tier BOM explosion, gross-to-net MRP, and interactive manual override tracking.
+- **Roadmap**:
+  - Direct database connectors (PostgreSQL, Snowflake, BigQuery) alongside Excel ingestion.
+  - Multi-scenario "What-If" planning simulation mode.
+  - Automated supplier lead-time variance tracking.
+
+---
+
+## 12. License
+
+Proprietary and Confidential. All rights reserved.  
 Developed for enterprise demand and supply intelligence operations.
