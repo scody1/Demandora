@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 48" fill="none">
+  <defs>
+    <linearGradient id="logoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="iconGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon Mark -->
+  <g transform="translate(4, 6)">
+    <rect width="36" height="36" rx="8" fill="url(#logoBg)"/>
+    <rect x="0.5" y="0.5" width="35" height="35" rx="7.5" stroke="#312e81" stroke-width="1"/>
+    <path d="M10 10C10 9.44772 10.4477 9 11 9H16.5C21.1944 9 25 12.8056 25 17.5V18.5C25 23.1944 21.1944 27 16.5 27H11C10.4477 27 10 26.5523 10 26V10Z" fill="url(#iconGrad)"/>
+    <path d="M14 13H16.5C18.9853 13 21 15.0147 21 17.5C21 19.9853 18.9853 22 16.5 22H14V13Z" fill="#0f172a"/>
+    <path d="M16 15.5L18.5 18L23 12.5" stroke="url(#accentGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Typography: DEMANDORA -->
+  <text x="52" y="27" font-family="'Inter', -apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="800" letter-spacing="1.5" fill="#0f172a">DEMANDORA</text>
+  <text x="52" y="38" font-family="'Inter', -apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" fill="#6366f1">SUPPLY INTELLIGENCE</text>
+</svg>

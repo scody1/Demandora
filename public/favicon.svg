@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="vectorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Sleek Dark Container -->
+  <rect width="32" height="32" rx="7" fill="url(#bgGrad)"/>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="6.5" stroke="#312e81" stroke-width="1"/>
+
+  <!-- Geometric "D" Monogram + Predictive Forward Wave -->
+  <!-- Left Spine -->
+  <path d="M8 8C8 7.44772 8.44772 7 9 7H13.5C18.1944 7 22 10.8056 22 15.5V16.5C22 21.1944 18.1944 25 13.5 25H9C8.44772 25 8 24.5523 8 24V8Z" fill="url(#glowGrad)"/>
+  <!-- Inner Cutout -->
+  <path d="M12 11H13.5C15.9853 11 18 13.0147 18 15.5C18 17.9853 15.9853 20 13.5 20H12V11Z" fill="#0f172a"/>
+  <!-- Predictive Dynamic Pulse Bar -->
+  <path d="M14 13.5L16.5 16L21 10.5" stroke="url(#vectorGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
